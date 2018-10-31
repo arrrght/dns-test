@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["arrrght <arrrght@gmail.com>"]
 
 [dependencies]
-dns-lookup = "1.0.0"
+dns-parser = "0.8.0"
