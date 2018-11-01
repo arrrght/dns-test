@@ -1,5 +1,6 @@
 extern crate dns_parser;
 extern crate rand;
+extern crate url;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use rand::thread_rng;
@@ -7,6 +8,7 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::net::UdpSocket;
 use std::time::Instant;
+use url::{Url, ParseError};
 
 use dns_parser::{Builder, Packet, ResponseCode};
 use dns_parser::{QueryClass, QueryType};
@@ -20,8 +22,19 @@ fn main() {
         doit(i);
     }
 }
+fn prs(name: &str) -> Result<SocketAddr, String> {
+    let u = Url::parse(name);
+    //println!("parsed: {}", u.host());
+    match name.parse() {
+        Ok(x) => Ok(x),
+        Err(x) => Err(x.to_string())
+    }
+}
+
 fn doit(name: &str) {
     let mut arr: [u32; USIZE] = [0; USIZE];
+
+
     let sa: SocketAddr = match name.to_socket_addrs() {
         Err(_) => format!("{}:53", name).parse().unwrap(),
         Ok(_) => name.parse().unwrap(),
