@@ -11,7 +11,7 @@ use std::time::Instant;
 use dns_parser::{Builder, Packet, ResponseCode};
 use dns_parser::{QueryClass, QueryType};
 
-const USIZE: usize = 7;
+const USIZE: usize = 42;
 
 fn main() {
     let names = [
@@ -68,20 +68,19 @@ fn doit(max_len: usize, name: &str) {
     let mut arr: [u32; USIZE] = [0; USIZE];
     let sa = prs2(name).expect("An error has occured when parse name");
     let sock = match sa.is_ipv6() {
-        true => UdpSocket::bind("[::]:0").expect("Can't bind to local addr"),
-        _ => UdpSocket::bind("0.0.0.0:0").expect("Can't bind to local addr"),
-    };
+        true => UdpSocket::bind("[::]:0"),
+        _ => UdpSocket::bind("0.0.0.0:0"),
+    }.expect("Can't bind context");
     sock.connect(sa).expect("Can't connect to nameserver");
-    //sock.local_addr().map(|x| println!("XXX: {}", x.to_string()));
+    //sock.local_addr().map(|x| println!("XXXX: {}", x.to_string()));
 
     for i in 0..arr.len() {
         let now = Instant::now();
         let rstr: String = thread_rng().sample_iter(&Alphanumeric).take(8).collect();
         let host = rstr + ".e1.ru";
-        //println!("host: {}", host);
         let mut builder = Builder::new_query(1, true);
         builder.add_question(&host, false, QueryType::A, QueryClass::IN);
-        let packet = builder.build().map_err(|_| "truncated packet").unwrap();
+        let packet = builder.build().expect("Can't build packet");
         sock.send(&packet).expect("Can't send");
         let mut buf = vec![0u8; 4096];
         sock.recv(&mut buf).expect("Recieve from server failed");
@@ -99,10 +98,6 @@ fn doit(max_len: usize, name: &str) {
     let sum: u32 = arr.iter().sum();
     let aver: f32 = sum as f32 / arr.len() as f32;
     let median = arr[arr.len() / 2];
-    //let spaces = " ".take(max_len - name.len());
     let spaces = (0..max_len - name.len()).map(|_| " ").collect::<String>();
-    println!(
-        "name {}{}  average: {}, median: {}",
-        name, spaces, aver, median
-    );
+    println!("{}{}  average: {}, median: {}", name, spaces, aver, median);
 }
