@@ -3,9 +3,8 @@ extern crate rand;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use rand::thread_rng;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Instant;
-
+use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use dns_parser::{Builder, Packet, ResponseCode};
 use dns_parser::{QueryClass, QueryType};
 
@@ -27,38 +26,6 @@ fn main() {
     }
 }
 
-#[test]
-fn prs2_test() {
-    assert_eq!(prs2("8.8.8.8").is_ok(), true);
-    assert_eq!(prs2("8.8.8.8"), prs2("8.8.8.8:53"));
-    assert_eq!(
-        prs2("8.8.8.8").ok(),
-        Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53))
-    );
-    assert_eq!(
-        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]").is_ok(),
-        true
-    );
-    match prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") {
-        Err(_) => assert!(false, "covert host failed"),
-        Ok(x) => assert_eq!(x.port(), 53),
-    };
-
-    assert_eq!(
-        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
-        prs2("[2001:db8:85a3::8a2e:370:7334]:53")
-    );
-    assert_eq!(
-        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:888"),
-        prs2("[2001:db8:85a3::8a2e:370:7334]:888")
-    );
-    assert_eq!(prs2("skydns.ru").is_ok(), true);
-    match prs2("skydns.ru") {
-        Err(_) => assert!(false, "covert host failed"),
-        Ok(x) => assert_eq!(x.port(), 53),
-    };
-    assert_eq!(prs2("kjlkjsdsdlfjsdkfjsldkjfklsdjflskdjfj").is_err(), true);
-}
 
 fn prs2(name: &str) -> Result<SocketAddr, String> {
     match name.to_socket_addrs() {
@@ -107,3 +74,42 @@ fn doit(max_len: usize, name: &str) {
     let spaces = (0..max_len - name.len()).map(|_| " ").collect::<String>();
     println!("{}{}  average: {}, median: {}", name, spaces, aver, median);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+    #[test]
+    fn prs2_test() {
+        assert_eq!(prs2("8.8.8.8").is_ok(), true);
+        assert_eq!(prs2("8.8.8.8"), prs2("8.8.8.8:53"));
+        assert_eq!(
+            prs2("8.8.8.8").ok(),
+            Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53))
+        );
+        assert_eq!(
+            prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]").is_ok(),
+            true
+        );
+        match prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") {
+            Err(_) => assert!(false, "convert host failed"),
+            Ok(x) => assert_eq!(x.port(), 53),
+        };
+
+        assert_eq!(
+            prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
+            prs2("[2001:db8:85a3::8a2e:370:7334]:53")
+        );
+        assert_eq!(
+            prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:888"),
+            prs2("[2001:db8:85a3::8a2e:370:7334]:888")
+        );
+        assert_eq!(prs2("skydns.ru").is_ok(), true);
+        match prs2("skydns.ru") {
+            Err(_) => assert!(false, "convert host failed"),
+            Ok(x) => assert_eq!(x.port(), 53),
+        };
+        assert_eq!(prs2("kjlkjsdsdlfjsdkfjsldkjfklsdjflskdjfj").is_err(), true);
+    }
+}
+
