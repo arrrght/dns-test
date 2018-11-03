@@ -3,9 +3,7 @@ extern crate rand;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use rand::thread_rng;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
-use std::net::UdpSocket;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Instant;
 
 use dns_parser::{Builder, Packet, ResponseCode};
@@ -31,27 +29,35 @@ fn main() {
 
 #[test]
 fn prs2_test() {
-    fn tt(sa: Result<SocketAddr, String>) -> String {
-        match sa {
-            Err(e) => e,
-            Ok(x) => x.to_string(),
-        }
-    }
-    assert_eq!(tt(prs2("8.8.8.8")), "8.8.8.8:53");
-    assert_eq!(tt(prs2("8.8.8.8:888")), "8.8.8.8:888");
+    assert_eq!(prs2("8.8.8.8").is_ok(), true);
+    assert_eq!(prs2("8.8.8.8"), prs2("8.8.8.8:53"));
     assert_eq!(
-        tt(prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]")),
-        "[2001:db8:85a3::8a2e:370:7334]:53"
+        prs2("8.8.8.8").ok(),
+        Some(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53))
     );
     assert_eq!(
-        tt(prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:888")),
-        "[2001:db8:85a3::8a2e:370:7334]:888"
+        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]").is_ok(),
+        true
     );
-    assert_eq!(tt(prs2("skydns.ru")), "176.9.59.134:53");
+    match prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]") {
+        Err(_) => assert!(false, "covert host failed"),
+        Ok(x) => assert_eq!(x.port(), 53),
+    };
+
     assert_eq!(
-        tt(prs2("kjlkjsdsdlfjsdkfjsldkjfklsdjflskdjfj")),
-        "failed to lookup address information: Name or service not known"
+        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]"),
+        prs2("[2001:db8:85a3::8a2e:370:7334]:53")
     );
+    assert_eq!(
+        prs2("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:888"),
+        prs2("[2001:db8:85a3::8a2e:370:7334]:888")
+    );
+    assert_eq!(prs2("skydns.ru").is_ok(), true);
+    match prs2("skydns.ru") {
+        Err(_) => assert!(false, "covert host failed"),
+        Ok(x) => assert_eq!(x.port(), 53),
+    };
+    assert_eq!(prs2("kjlkjsdsdlfjsdkfjsldkjfklsdjflskdjfj").is_err(), true);
 }
 
 fn prs2(name: &str) -> Result<SocketAddr, String> {
