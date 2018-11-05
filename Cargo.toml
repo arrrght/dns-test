@@ -7,3 +7,4 @@ authors = ["arrrght <arrrght@gmail.com>"]
 dns-parser = "0.8.0"
 rand = "0.5.0"
 tokio = "0.1.11"
+futures = "0.1.25"
