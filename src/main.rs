@@ -1,5 +1,8 @@
 extern crate dns_parser;
 extern crate rand;
+extern crate futures;
+
+use std::thread;
 use rand::distributions::Alphanumeric;
 use rand::prelude::*;
 use rand::thread_rng;
@@ -7,12 +10,15 @@ use std::time::Instant;
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use dns_parser::{Builder, Packet, ResponseCode};
 use dns_parser::{QueryClass, QueryType};
+use futures::Future;
+//use futures::sync::oneshot;
+use futures::future::join_all;
 
-const USIZE: usize = 42;
+const USIZE: usize = 15;
 
 fn main() {
     let names = [
-        "[2001:4860:4860::8888]",
+        //"[2001:4860:4860::8888]",
         "8.8.8.8",
         "193.58.251.251",
         "1.1.1.1",
@@ -38,36 +44,42 @@ fn prs2(name: &str) -> Result<SocketAddr, String> {
 }
 
 fn doit(max_len: usize, name: &str) {
-    let mut arr: [u32; USIZE] = [0; USIZE];
+    //let mut arr: [u32; USIZE] = [0; USIZE];
     let sa = prs2(name).expect("An error has occured when parse name");
-    let sock = match sa.is_ipv6() {
-        true => UdpSocket::bind("[::]:0"),
-        _ => UdpSocket::bind("0.0.0.0:0"),
-    }.expect("Can't bind context");
-    sock.connect(sa).expect("Can't connect to nameserver");
-    //sock.local_addr().map(|x| println!("XXXX: {}", x.to_string()));
 
-    for i in 0..arr.len() {
-        let now = Instant::now();
-        let rstr: String = thread_rng().sample_iter(&Alphanumeric).take(8).collect();
-        let host = rstr + ".e1.ru";
-        let mut builder = Builder::new_query(1, true);
-        builder.add_question(&host, false, QueryType::A, QueryClass::IN);
-        let packet = builder.build().expect("Can't build packet");
-        sock.send(&packet).expect("Can't send");
-        let mut buf = vec![0u8; 4096];
-        sock.recv(&mut buf).expect("Recieve from server failed");
-        let pkt = Packet::parse(&buf).expect("pkt parse err");
+    let mut rx_set = Vec::new();
+    for _i in 0..USIZE {
+        let (tx, rx) = futures::oneshot();
+        rx_set.push(rx);
+        thread::spawn(move || {
+            let sock = match sa.is_ipv6() {
+                true => UdpSocket::bind("[::]:0"),
+                _ => UdpSocket::bind("0.0.0.0:0"),
+            }.expect("Can't bind context");
+            sock.connect(sa).expect("Can't connect to nameserver");
+            let now = Instant::now();
+            let rstr: String = thread_rng().sample_iter(&Alphanumeric).take(8).collect();
+            let host = rstr + ".e1.ru";
+            let mut builder = Builder::new_query(1, true);
+            builder.add_question(&host, false, QueryType::A, QueryClass::IN);
+            let packet = builder.build().expect("Can't build packet");
+            sock.send(&packet).expect("Can't send");
+            let mut buf = vec![0u8; 4096];
+            sock.recv(&mut buf).expect("Recieve from server failed");
+            let pkt = Packet::parse(&buf).expect("pkt parse err");
 
-        if pkt.header.response_code == ResponseCode::NoError
-            || pkt.header.response_code == ResponseCode::NameError
-        {
-            arr[i] = now.elapsed().subsec_millis();
-        } else {
-            panic!("Something bad happening");
-        }
+            if pkt.header.response_code == ResponseCode::NoError
+                || pkt.header.response_code == ResponseCode::NameError
+            {
+                let _ = tx.send(now.elapsed().subsec_millis());
+            } else {
+                panic!("Something bad happening");
+            }
+        });
     }
+    let mut arr = join_all(rx_set).wait().unwrap();
     arr.sort();
+    println!("result: {:?}", arr);
     let sum: u32 = arr.iter().sum();
     let aver: f32 = sum as f32 / arr.len() as f32;
     let median = arr[arr.len() / 2];
