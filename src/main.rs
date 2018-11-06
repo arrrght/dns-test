@@ -15,6 +15,7 @@ use futures::Future;
 use futures::future::join_all;
 
 const USIZE: usize = 15;
+// Great thanks to https://hoverbear.org/2017/03/01/the-future-with-futures/
 
 fn main() {
     let names = [
