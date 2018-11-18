@@ -1,6 +1,8 @@
 extern crate dns_parser;
 extern crate rand;
 extern crate futures;
+extern crate tokio;
+mod pb;
 
 use std::thread;
 use rand::distributions::Alphanumeric;
@@ -14,7 +16,7 @@ use futures::Future;
 //use futures::sync::oneshot;
 use futures::future::join_all;
 
-const USIZE: usize = 15;
+const USIZE: usize = 8;
 // Great thanks to https://hoverbear.org/2017/03/01/the-future-with-futures/
 
 fn main() {
@@ -61,9 +63,11 @@ fn doit(max_len: usize, name: &str) {
             let now = Instant::now();
             let rstr: String = thread_rng().sample_iter(&Alphanumeric).take(8).collect();
             let host = rstr + ".e1.ru";
+
             let mut builder = Builder::new_query(1, true);
             builder.add_question(&host, false, QueryType::A, QueryClass::IN);
             let packet = builder.build().expect("Can't build packet");
+
             sock.send(&packet).expect("Can't send");
             let mut buf = vec![0u8; 4096];
             sock.recv(&mut buf).expect("Recieve from server failed");
